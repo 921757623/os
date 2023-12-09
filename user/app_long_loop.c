@@ -7,11 +7,14 @@
 #include "user_lib.h"
 #include "util/types.h"
 
-int main(void) {
+int main(void)
+{
   printu("Hello world!\n");
   int i;
-  for (i = 0; i < 100000000; ++i) {
-    if (i % 5000000 == 0) printu("wait %d\n", i);
+  for (i = 0; i < 100000000; ++i)
+  {
+    if (i % 5000000 == 0)
+      printu("wait %d\n", i);
   }
 
   exit(0);
