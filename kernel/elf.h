@@ -5,9 +5,13 @@
 #include "process.h"
 
 #define MAX_CMDLINE_ARGS 64
+#define STT_NOTYPE 0 // No type
+#define STT_OBJECT 1 // Data object (variable, array, etc.)
+#define STT_FUNC 18  // Function or executable code
 
 // elf header structure
-typedef struct elf_header_t {
+typedef struct elf_header_t
+{
   uint32 magic;
   uint8 elf[12];
   uint16 type;      /* Object file type */
@@ -25,8 +29,26 @@ typedef struct elf_header_t {
   uint16 shstrndx;  /* Section header string table index */
 } elf_header;
 
+// https://blog.csdn.net/kouxi1/article/details/126707153
+// https://man7.org/linux/man-pages/man5/elf.5.html
+// 参考链接 ↑↑↑
+typedef struct elf_shdr_t
+{
+  uint32 sh_name;
+  uint32 sh_type;
+  uint64 sh_flags;
+  uint64 sh_addr;
+  uint64 sh_offset;
+  uint64 sh_size;
+  uint32 sh_link;
+  uint32 sh_info;
+  uint64 sh_addralign;
+  uint64 sh_entsize;
+} elf_shdr;
+
 // Program segment header.
-typedef struct elf_prog_header_t {
+typedef struct elf_prog_header_t
+{
   uint32 type;   /* Segment type */
   uint32 flags;  /* Segment flags */
   uint64 off;    /* Segment file offset */
@@ -37,10 +59,11 @@ typedef struct elf_prog_header_t {
   uint64 align;  /* Segment alignment */
 } elf_prog_header;
 
-#define ELF_MAGIC 0x464C457FU  // "\x7FELF" in little endian
+#define ELF_MAGIC 0x464C457FU // "\x7FELF" in little endian
 #define ELF_PROG_LOAD 1
 
-typedef enum elf_status_t {
+typedef enum elf_status_t
+{
   EL_OK = 0,
 
   EL_EIO,
@@ -50,7 +73,8 @@ typedef enum elf_status_t {
 
 } elf_status;
 
-typedef struct elf_ctx_t {
+typedef struct elf_ctx_t
+{
   void *info;
   elf_header ehdr;
 } elf_ctx;
@@ -59,5 +83,6 @@ elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
 void load_bincode_from_host_elf(process *p);
+void get_function_name(elf_ctx *ctx);
 
 #endif

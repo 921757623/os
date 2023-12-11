@@ -1,7 +1,7 @@
 /*
- * Utility functions for process management. 
+ * Utility functions for process management.
  *
- * Note: in Lab1, only one process (i.e., our user application) exists. Therefore, 
+ * Note: in Lab1, only one process (i.e., our user application) exists. Therefore,
  * PKE OS at this stage will set "current" to the loaded user application, and also
  * switch to the old "current" process after trap handling.
  */
@@ -15,17 +15,18 @@
 
 #include "spike_interface/spike_utils.h"
 
-//Two functions defined in kernel/usertrap.S
+// Two functions defined in kernel/usertrap.S
 extern char smode_trap_vector[];
-extern void return_to_user(trapframe*);
+extern void return_to_user(trapframe *);
 
 // current points to the currently running user-mode application.
-process* current = NULL;
-
+process *current = NULL;
+sym_info symbol_info;
 //
 // switch to a user-mode process
 //
-void switch_to(process* proc) {
+void switch_to(process *proc)
+{
   assert(proc);
   current = proc;
 
@@ -36,14 +37,14 @@ void switch_to(process* proc) {
 
   // set up trapframe values (in process structure) that smode_trap_vector will need when
   // the process next re-enters the kernel.
-  proc->trapframe->kernel_sp = proc->kstack;  // process's kernel stack
+  proc->trapframe->kernel_sp = proc->kstack; // process's kernel stack
   proc->trapframe->kernel_trap = (uint64)smode_trap_handler;
 
   // SSTATUS_SPP and SSTATUS_SPIE are defined in kernel/riscv.h
   // set S Previous Privilege mode (the SSTATUS_SPP bit in sstatus register) to User mode.
   unsigned long x = read_csr(sstatus);
-  x &= ~SSTATUS_SPP;  // clear SPP to 0 for user mode
-  x |= SSTATUS_SPIE;  // enable interrupts in user mode
+  x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
+  x |= SSTATUS_SPIE; // enable interrupts in user mode
 
   // write x back to 'sstatus' register to enable interrupts, and sret destination mode.
   write_csr(sstatus, x);
