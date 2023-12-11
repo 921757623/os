@@ -33,7 +33,7 @@ ssize_t sys_user_exit(uint64 code)
   shutdown(code);
 }
 
-ssize_t find_closest_function(uint64 return_add)
+int find_closest_function(uint64 return_add)
 {
   for (int i = 0; i < symbol_info.cnt; i++)
   {
@@ -52,8 +52,8 @@ ssize_t find_closest_function(uint64 return_add)
 ssize_t sys_user_print_backtrace(uint64 deep)
 {
   // uint64 a = current->trapframe->regs.sp; // 810fff40
+  sprint("%x\n", *(uint64 *)(current->trapframe->regs.sp + 32));
   uint64 sp = current->trapframe->regs.sp + 32 + 8;
-
   for (int i = 0; i < deep; i++)
   {
     if (find_closest_function(*(uint64 *)sp) == 0)

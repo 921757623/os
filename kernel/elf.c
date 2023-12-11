@@ -158,11 +158,11 @@ void get_function_name(elf_ctx *ctx)
   {
     elf_sym tmp;
     elf_fpread(ctx, (void *)&tmp, sizeof(elf_sym), symtab.sh_offset + i * sizeof(elf_sym));
-    // sprint("%x %d\n", tmp.st_value, tmp.st_size);
     if (tmp.st_info == STT_FUNC)
     {
       elf_fpread(ctx, (void *)symbol_info.name[symbol_info.cnt], 32, strtab.sh_offset + tmp.st_name);
       symbol_info.symbols[symbol_info.cnt++] = tmp;
+      // sprint("%x %d\n", tmp.st_value, tmp.st_size, symbol_info.name[symbol_info.cnt - 1]);
     }
   }
 }
