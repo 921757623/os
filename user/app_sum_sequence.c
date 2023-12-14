@@ -13,14 +13,16 @@
 // may consume more memory (from stack) than a physical 4KB page, leading to a page fault.
 // PKE kernel needs to improved to handle such page fault by expanding the stack.
 //
-uint64 sum_sequence(uint64 n, int *p) {
+uint64 sum_sequence(uint64 n, int *p)
+{
   if (n == 0)
     return 0;
   else
-    return *p=sum_sequence( n-1, p+1 ) + n;
+    return *p = sum_sequence(n - 1, p + 1) + n;
 }
 
-int main(void) {
+int main(void)
+{
   // FIRST, we need a large enough "n" to trigger pagefaults in the user stack
   uint64 n = 1024;
 
@@ -30,7 +32,7 @@ int main(void) {
   // SECOND, we use array out of bound to trigger pagefaults in an invalid address
   int *ans = (int *)naive_malloc();
 
-  printu("Summation of an arithmetic sequence from 0 to %ld is: %ld \n", n, sum_sequence(n+1, ans) );
+  printu("Summation of an arithmetic sequence from 0 to %ld is: %ld \n", n, sum_sequence(n + 1, ans));
 
   exit(0);
 }
