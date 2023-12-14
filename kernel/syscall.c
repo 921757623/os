@@ -35,6 +35,7 @@ ssize_t sys_user_exit(uint64 code)
 
 int find_closest_function(uint64 return_add)
 {
+  // sprint("in func ra: %x\n", return_add);
   for (int i = 0; i < symbol_info.cnt; i++)
   {
     // 寻找最近的函数
@@ -52,10 +53,11 @@ int find_closest_function(uint64 return_add)
 ssize_t sys_user_print_backtrace(uint64 deep)
 {
   // uint64 a = current->trapframe->regs.sp; // 810fff40
-  sprint("%x\n", *(uint64 *)(current->trapframe->regs.sp + 32));
-  uint64 sp = current->trapframe->regs.sp + 32 + 8;
+  // 因为实验没有优化fp，所以需要额外加上一个16
+  uint64 sp = current->trapframe->regs.sp + 16 + 8 + 16;
   for (int i = 0; i < deep; i++)
   {
+    // sprint("current p: %x\n", sp);
     if (find_closest_function(*(uint64 *)sp) == 0)
       return 0;
     sp += 16;
