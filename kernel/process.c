@@ -244,20 +244,26 @@ int do_fork(process *parent)
       // address region of child to the physical pages that actually store the code
       // segment of parent process.
       // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
-      map_pages(
-          child->pagetable,
-          parent->mapped_info[i].va,
-          parent->mapped_info[i].npages * PGSIZE,
-          lookup_pa(parent->pagetable, parent->mapped_info[i].va),
-          prot_to_type(PROT_EXEC | PROT_READ, 1));
+      {
+        uint64 pa = lookup_pa(parent->pagetable, parent->mapped_info[i].va);
+        map_pages(
+            child->pagetable,
+            parent->mapped_info[i].va,
+            parent->mapped_info[i].npages * PGSIZE,
+            pa,
+            prot_to_type(PROT_EXEC | PROT_READ, 1));
 
-      // after mapping, register the vm region (do not delete codes below!)
-      child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
-      child->mapped_info[child->total_mapped_region].npages =
-          parent->mapped_info[i].npages;
-      child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
-      child->total_mapped_region++;
-      break;
+        sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n",
+               pa, parent->mapped_info[i].va);
+
+        // after mapping, register the vm region (do not delete codes below!)
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages =
+            parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      }
     }
   }
 
@@ -267,4 +273,57 @@ int do_fork(process *parent)
   insert_to_ready_queue(child);
 
   return child->pid;
+}
+
+int do_wait(int pid)
+{
+  if (pid == -1)
+  {
+    // child数组用于存储当前进程的所有子进程的pid
+    int cnt = -1;
+    // 找出当前进程的子进程
+    for (int i = 0; i < NPROC; i++)
+    {
+      if (procs[i].parent == current)
+      {
+        cnt++;
+        // 如果当前子进程已经结束了就直接返回
+        if (procs[i].status == ZOMBIE)
+        {
+          procs[i].status = FREE;
+          return i;
+        }
+      }
+    }
+
+    // 如果没有子进程，直接结束
+    if (cnt == -1)
+    {
+      return -1;
+    }
+    else
+    {
+      return -2;
+    }
+    // 如果在寻找的过程中子进程均没有结束
+  }
+  else if (pid >= 0 && pid < NPROC)
+  {
+    if (procs[pid].parent != current)
+    {
+      return -1;
+    }
+    else
+    {
+      if (procs[pid].status == ZOMBIE)
+      {
+        procs[pid].status = FREE;
+        return pid;
+      }
+      else
+        return -2;
+    }
+  }
+  // pid不合法的情况
+  return -1;
 }
