@@ -83,6 +83,7 @@ void rrsched()
   {
     current->tick_count = 0;
     current->status = READY;
+    // panic("rrsched called\n");
     insert_to_ready_queue(current);
     schedule();
   }

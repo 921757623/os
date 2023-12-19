@@ -101,20 +101,12 @@ ssize_t sys_user_yield()
   current->status = READY;
   insert_to_ready_queue(current);
   schedule();
-
   return 0;
 }
 
 ssize_t sys_user_wait(int pid)
 {
-  while (2233)
-  {
-    int res = do_wait(pid);
-    if (res == -2)
-      sys_user_yield();
-    else
-      return res;
-  }
+  return do_wait(pid);
 }
 
 //

@@ -82,6 +82,7 @@ void init_proc_pool()
   {
     procs[i].status = FREE;
     procs[i].pid = i;
+    procs[i].parent = NULL;
   }
 }
 
@@ -171,7 +172,8 @@ int free_process(process *proc)
   // but for proxy kernel, it (memory leaking) may NOT be a really serious issue,
   // as it is different from regular OS, which needs to run 7x24.
   proc->status = ZOMBIE;
-
+  if (current->parent != NULL)
+    insert_to_ready_queue(current->parent);
   return 0;
 }
 
@@ -244,26 +246,41 @@ int do_fork(process *parent)
       // address region of child to the physical pages that actually store the code
       // segment of parent process.
       // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
+      map_pages(
+          child->pagetable,
+          parent->mapped_info[i].va,
+          parent->mapped_info[i].npages * PGSIZE,
+          lookup_pa(parent->pagetable, parent->mapped_info[i].va),
+          prot_to_type(PROT_EXEC | PROT_READ, 1));
+
+      // after mapping, register the vm region (do not delete codes below!)
+      child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+      child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+      child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+      child->total_mapped_region++;
+      break;
+    case DATA_SEGMENT:
+    {
+      for (int j = 0; j < parent->mapped_info[i].npages; j++)
       {
-        uint64 pa = lookup_pa(parent->pagetable, parent->mapped_info[i].va);
+        void *pa = (void *)lookup_pa(parent->pagetable, parent->mapped_info[i].va + j * PGSIZE);
+        void *new_pa = alloc_page();
+        memcpy(new_pa, pa, PGSIZE);
         map_pages(
             child->pagetable,
-            parent->mapped_info[i].va,
-            parent->mapped_info[i].npages * PGSIZE,
-            pa,
-            prot_to_type(PROT_EXEC | PROT_READ, 1));
-
-        sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n",
-               pa, parent->mapped_info[i].va);
-
-        // after mapping, register the vm region (do not delete codes below!)
-        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
-        child->mapped_info[child->total_mapped_region].npages =
-            parent->mapped_info[i].npages;
-        child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
-        child->total_mapped_region++;
-        break;
+            parent->mapped_info[i].va + j * PGSIZE,
+            PGSIZE,
+            (uint64)new_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
       }
+      // after mapping, register the vm region (do not delete codes below!)
+      child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+      child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+      child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+      child->total_mapped_region++;
+      break;
+    }
     }
   }
 
@@ -287,7 +304,8 @@ int do_wait(int pid)
       if (procs[i].parent == current)
       {
         cnt++;
-        // 如果当前子进程已经结束了就直接返回
+        // sprint("\ncurrent pid: %d, its son pid: %d\n\n", current->pid, procs[i].pid);
+        //  如果当前子进程已经结束了就直接返回
         if (procs[i].status == ZOMBIE)
         {
           procs[i].status = FREE;
@@ -295,20 +313,22 @@ int do_wait(int pid)
         }
       }
     }
-
     // 如果没有子进程，直接结束
     if (cnt == -1)
     {
+      // panic("\nend\n");
       return -1;
     }
     else
     {
+      schedule();
       return -2;
     }
     // 如果在寻找的过程中子进程均没有结束
   }
-  else if (pid >= 0 && pid < NPROC)
+  else if (pid > 0 && pid < NPROC)
   {
+    // 如果目标pid不是当前进程的子进程
     if (procs[pid].parent != current)
     {
       return -1;
@@ -321,9 +341,13 @@ int do_wait(int pid)
         return pid;
       }
       else
+      {
+        schedule();
         return -2;
+      }
     }
   }
   // pid不合法的情况
+  panic("\nilleagal\n");
   return -1;
 }
