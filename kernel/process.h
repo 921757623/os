@@ -2,8 +2,10 @@
 #define _PROC_H_
 
 #include "riscv.h"
+#include "vmm.h"
 
-typedef struct trapframe_t {
+typedef struct trapframe_t
+{
   // space to store context (all common registers)
   /* offset:0   */ riscv_regs regs;
 
@@ -16,23 +18,26 @@ typedef struct trapframe_t {
 
   // kernel page table. added @lab2_1
   /* offset:272 */ uint64 kernel_satp;
-}trapframe;
+} trapframe;
 
 // the extremely simple definition of process, used for begining labs of PKE
-typedef struct process_t {
+typedef struct process_t
+{
   // pointing to the stack used in trap handling.
   uint64 kstack;
   // user page table
   pagetable_t pagetable;
   // trapframe storing the context of a (User mode) process.
-  trapframe* trapframe;
-}process;
+  trapframe *trapframe;
+  // 堆管理下进程堆的大小
+  heap_manage heap;
+} process;
 
 // switch to run user app
-void switch_to(process*);
+void switch_to(process *);
 
 // current running process
-extern process* current;
+extern process *current;
 
 // address of the first free page in our simple heap. added @lab2_2
 extern uint64 g_ufree_page;

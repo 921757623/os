@@ -214,3 +214,80 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free)
   free_page((void *)PTE2PA(*PTE));
   *PTE &= (~PTE_V);
 }
+
+// 对新增的虚拟地址添加对应的物理地址映射
+uint64 user_vm_allocate(pagetable_t page_dir, uint64 old_size, uint64 new_size)
+{
+  char *pa;
+  // sprint("this is before ROUNDUP: %p\n", old_size);
+  old_size = ROUNDUP(old_size, PGSIZE);
+  // sprint("this is after ROUNDUP: %p\n", old_size);
+  for (uint64 old = old_size; old < new_size; old += PGSIZE)
+  {
+    pa = (char *)alloc_page();
+    memset(pa, 0, sizeof(uint8) * PGSIZE);
+    map_pages(page_dir, old_size, PGSIZE, (uint64)pa, prot_to_type(PROT_READ | PROT_WRITE, 1));
+  }
+  return new_size;
+}
+
+// 将堆扩大相应的大小
+void enlarge_heap_size(pagetable_t page_dir, heap_manage *heap, uint64 increased_size)
+{
+  if (increased_size <= 0)
+  {
+    panic("element illegal!");
+    return;
+  }
+  sprint("begin enlarge heap size!\n");
+  heap->size = user_vm_allocate(page_dir, heap->size, heap->size + increased_size);
+  sprint("current heap size is: %p\n", heap->size);
+}
+
+uint64 user_vm_malloc(pagetable_t page_dir, heap_manage *heap, uint64 size)
+{
+  sprint("begin to malloc\n");
+  // 现在已有的内存控制块中寻找是否有可用的内存块
+  vm_node *head = heap->start;
+  while (head)
+  {
+    if (head->is_free == TRUE && head->size >= size)
+    {
+      sprint("find the free memory block: %p\n", head);
+      head->is_free = FALSE;
+      return head->node_addr + sizeof(vm_node);
+    }
+    head = head->next;
+  }
+  sprint("create new memory block!\n");
+  // 如果没有找到空余的内存块，那么创建一个新的内存块
+  uint64 addr = heap->size;
+  enlarge_heap_size(page_dir, heap, sizeof(vm_node) + size + 8); // 加8是为了内存对齐
+  pte_t *pte = page_walk(page_dir, addr, 0);
+  vm_node *new_vm = (vm_node *)(PTE2PA(*pte) + (addr & 0xfff));
+  // 内存对齐
+  new_vm = (vm_node *)((uint64)new_vm + (8 - ((uint64)new_vm % 8)));
+
+  new_vm->is_free = FALSE;
+  new_vm->size = size;
+  new_vm->node_addr = addr;
+
+  // 尾插法更新链表
+  new_vm->next = NULL;
+  heap->end->next = new_vm;
+  heap->end = new_vm;
+  sprint("the new memory bolck's addr is: %p\n", new_vm);
+  return addr + sizeof(vm_node);
+}
+
+void user_vm_free(pagetable_t page_dir, uint64 va)
+{
+  sprint("begin to free!\n");
+  void *firstaddr = (void *)((uint64)va - sizeof(vm_node));
+  pte_t *pte = page_walk(page_dir, (uint64)(firstaddr), 0);
+  // 找到当前内存块的控制块
+  vm_node *current = (vm_node *)(PTE2PA(*pte) + ((uint64)firstaddr & 0xfff));
+  current = (vm_node *)((uint64)current + (8 - ((uint64)current % 8)));
+  current->is_free = TRUE;
+  sprint("the free memory bolck's addr is: %p\n", current);
+}
