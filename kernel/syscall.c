@@ -105,6 +105,68 @@ ssize_t sys_user_yield()
   return 0;
 }
 
+ssize_t sys_user_new(uint64 origin_value)
+{
+  if (signal_cnt < MAX_SIGNAL_CNT)
+  {
+    signal[signal_cnt].value = origin_value;
+    signal[signal_cnt++].next = NULL;
+    return signal_cnt - 1;
+  }
+  else
+  {
+    panic("signal queue overflow!");
+    return -1;
+  }
+}
+
+ssize_t sys_user_P(uint64 sem)
+{
+  process *head = signal[sem].next;
+  if (signal[sem].value > 0)
+  {
+    // sprint("the process %d P sem %d\n", current->pid, sem);
+    signal[sem].value--;
+  }
+  else
+  {
+    // sprint("the process %d want to P sem %d, but failed!\n", current->pid, sem);
+    if (head)
+    {
+      while (head->queue_next)
+      {
+        head = head->queue_next;
+      }
+      head->queue_next = current;
+    }
+    else
+    {
+      signal[sem].next = current;
+      current->queue_next = NULL;
+    }
+    current->status = BLOCKED;
+    schedule();
+  }
+  return 0;
+}
+
+ssize_t sys_user_V(uint64 sem)
+{
+  // sprint("the signal %d +1\n", sem);
+  // sprint("the process %d V sem %d\n", current->pid, sem);
+  process *head = signal[sem].next;
+  if (head)
+  {
+    signal[sem].next = head->queue_next;
+    insert_to_ready_queue(head);
+  }
+  else
+  {
+    signal[sem].value++;
+  }
+  return 0;
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
@@ -126,6 +188,12 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
     return sys_user_fork();
   case SYS_user_yield:
     return sys_user_yield();
+  case SYS_user_new:
+    return sys_user_new(a1);
+  case SYS_user_P:
+    return sys_user_P(a1);
+  case SYS_user_V:
+    return sys_user_V(a1);
   default:
     panic("Unknown syscall %ld \n", a0);
   }

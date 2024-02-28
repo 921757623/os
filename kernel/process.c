@@ -31,7 +31,7 @@ process procs[NPROC];
 
 // current points to the currently running user-mode application.
 process *current = NULL;
-
+int signal_cnt;
 //
 // switch to a user-mode process
 //
@@ -83,6 +83,8 @@ void init_proc_pool()
     procs[i].status = FREE;
     procs[i].pid = i;
   }
+
+  signal_cnt = 0;
 }
 
 //
