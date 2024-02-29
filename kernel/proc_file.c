@@ -255,6 +255,10 @@ int do_unlink(char *path)
 
 int do_exec(char *path)
 {
+  sprint("Application: %s\n", path);
+  struct file *pfile = vfs_open(path, O_RDONLY);
+  hostfs_hook_open(pfile->f_dentry->dentry_inode, pfile->f_dentry);
 
+  exec_proc(pfile->f_dentry->dentry_inode->i_fs_info);
   return 1;
 }
