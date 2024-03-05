@@ -78,7 +78,6 @@ elf_status elf_load(elf_ctx *ctx)
 
     // allocate memory block before elf loading
     void *dest = elf_alloc_mb(ctx, ph_addr.vaddr, ph_addr.vaddr, ph_addr.memsz);
-
     // actual loading
     if (elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
       return EL_EIO;
@@ -109,7 +108,10 @@ static size_t parse_args(arg_buf *arg_bug_msg)
 
   int arg = 1; // skip the PKE OS kernel string, leave behind only the application name
   for (size_t i = 0; arg + i < pk_argc; i++)
+  {
     arg_bug_msg->argv[i] = (char *)(uintptr_t)pk_argv[arg + i];
+    // sprint("%s\n", arg_bug_msg->argv[i]);
+  }
 
   // returns the number of strings after PKE kernel in command line
   return pk_argc - arg;
@@ -128,14 +130,14 @@ void load_bincode_from_host_elf(process *p)
   if (!argc)
     panic("You need to specify the application program!\n");
 
-  sprint("hartid = %d: Application: %s\n", hartid, arg_bug_msg.argv[0]);
+  sprint("hartid = %d: Application: %s\n", hartid, arg_bug_msg.argv[hartid]);
 
   // elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process.
   elf_ctx elfloader;
   // elf_info is defined above, used to tie the elf file and its corresponding process.
   elf_info info;
 
-  info.f = spike_file_open(arg_bug_msg.argv[0], O_RDONLY, 0);
+  info.f = spike_file_open(arg_bug_msg.argv[hartid], O_RDONLY, 0);
   info.p = p;
   // IS_ERR_VALUE is a macro defined in spike_interface/spike_htif.h
   if (IS_ERR_VALUE(info.f))
@@ -149,11 +151,18 @@ void load_bincode_from_host_elf(process *p)
   if (elf_load(&elfloader) != EL_OK)
     panic("Fail on loading elf.\n");
 
+  // USER_TRAP_FRAME is a physical address defined in kernel/config.h
+  p->trapframe[hartid] = (trapframe *)elfloader.ehdr.entry + USER_TRAP_FRAME_OFFSET;
+  memset(p->trapframe[hartid], 0, sizeof(trapframe));
+  // USER_KSTACK is also a physical address defined in kernel/config.h
+  p->kstack[hartid] = elfloader.ehdr.entry + USER_KSTACK_OFFSET;
+  p->trapframe[hartid]->regs.sp = elfloader.ehdr.entry + USER_STACK_OFFSET;
+
   // entry (virtual, also physical in lab1_x) address
-  p->trapframe->epc = elfloader.ehdr.entry;
+  p->trapframe[hartid]->epc = elfloader.ehdr.entry;
 
   // close the host spike file
   spike_file_close(info.f);
 
-  sprint("hartid = %d: Application program entry point (virtual address): 0x%lx\n", hartid, p->trapframe->epc);
+  sprint("hartid = %d: Application program entry point (virtual address): 0x%lx\n", hartid, p->trapframe[hartid]->epc);
 }

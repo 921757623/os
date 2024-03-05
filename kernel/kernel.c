@@ -18,13 +18,6 @@ process user_app;
 //
 void load_user_program(process *proc)
 {
-  // USER_TRAP_FRAME is a physical address defined in kernel/config.h
-  proc->trapframe = (trapframe *)USER_TRAP_FRAME;
-  memset(proc->trapframe, 0, sizeof(trapframe));
-  // USER_KSTACK is also a physical address defined in kernel/config.h
-  proc->kstack = USER_KSTACK;
-  proc->trapframe->regs.sp = USER_STACK;
-
   // load_bincode_from_host_elf() is defined in kernel/elf.c
   load_bincode_from_host_elf(proc);
 }
@@ -35,6 +28,7 @@ void load_user_program(process *proc)
 int s_start(void)
 {
   uint64 hartid = read_tp();
+
   sprint("hartid = %d: Enter supervisor mode...\n", hartid);
   // Note: we use direct (i.e., Bare mode) for memory mapping in lab1.
   // which means: Virtual Address = Physical Address
@@ -43,7 +37,8 @@ int s_start(void)
   // write_csr is a macro defined in kernel/riscv.h
   write_csr(satp, 0);
 
-  // the application code (elf) is first loaded into memory, and then put into execution
+  // sprint("the process's addr is %p\n", &user_app);
+  //  the application code (elf) is first loaded into memory, and then put into execution
   load_user_program(&user_app);
 
   sprint("hartid = %d: Switch to user mode...\n", hartid);

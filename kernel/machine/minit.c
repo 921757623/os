@@ -93,23 +93,29 @@ void timerinit(uintptr_t hartid)
   write_csr(mie, read_csr(mie) | MIE_MTIE);
 }
 
+int counter = 0;
 //
 // m_start: machine mode C entry point.
 //
 void m_start(uintptr_t hartid, uintptr_t dtb)
 {
-  // init the spike file interface (stdin,stdout,stderr)
-  // functions with "spike_" prefix are all defined in codes under spike_interface/,
-  // sprint is also defined in spike_interface/spike_utils.c
-  spike_file_init();
+  if (hartid == 0)
+  {
+    // init the spike file interface (stdin,stdout,stderr)
+    // functions with "spike_" prefix are all defined in codes under spike_interface/,
+    // sprint is also defined in spike_interface/spike_utils.c
+    spike_file_init();
+
+    // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
+    // init_dtb() is defined above.
+    init_dtb(dtb);
+  }
+
+  // 使用同步机制确保在spike和HTIF初始化完成之前，保证每个核都不会访问他们相应的资源。
+  // sprint("current counter's value is: %d\n", counter);
+  sync_barrier(&counter, NCPU);
+
   sprint("In m_start, hartid:%d\n", hartid);
-
-  // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
-  // init_dtb() is defined above.
-  init_dtb(dtb);
-
-  sync_barrier();
-
   // save the address of trap frame for interrupt in M mode to "mscratch". added @lab1_2
   write_csr(mscratch, &g_itrframe);
 
@@ -135,7 +141,8 @@ void m_start(uintptr_t hartid, uintptr_t dtb)
 
   // init timing. added @lab1_3
   timerinit(hartid);
-
+  // sprint("hartid %d alter the value of tp\n", hartid);
+  write_tp(hartid);
   // switch to supervisor mode (S mode) and jump to s_start(), i.e., set pc to mepc
   asm volatile("mret");
 }

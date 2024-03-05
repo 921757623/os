@@ -3,7 +3,8 @@
 
 #include "riscv.h"
 
-typedef struct trapframe_t {
+typedef struct trapframe_t
+{
   // space to store context (all common registers)
   /* offset:0   */ riscv_regs regs;
 
@@ -13,18 +14,19 @@ typedef struct trapframe_t {
   /* offset:256 */ uint64 kernel_trap;
   // saved user process counter
   /* offset:264 */ uint64 epc;
-}trapframe;
+} trapframe;
 
 // the extremely simple definition of process, used for begining labs of PKE
-typedef struct process_t {
+typedef struct process_t
+{
   // pointing to the stack used in trap handling.
-  uint64 kstack;
+  uint64 kstack[NCPU];
   // trapframe storing the context of a (User mode) process.
-  trapframe* trapframe;
-}process;
+  trapframe *trapframe[NCPU];
+} process;
 
-void switch_to(process*);
+void switch_to(process *);
 
-extern process* current;
+extern process *current;
 
 #endif
