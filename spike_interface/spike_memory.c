@@ -10,41 +10,51 @@
 
 uint64 g_mem_size;
 
-struct mem_scan {
+struct mem_scan
+{
   int memory;
   const uint32 *reg_value;
   int reg_len;
 };
 
-static void mem_open(const struct fdt_scan_node *node, void *extra) {
+static void mem_open(const struct fdt_scan_node *node, void *extra)
+{
   struct mem_scan *scan = (struct mem_scan *)extra;
   memset(scan, 0, sizeof(*scan));
 }
 
-static void mem_prop(const struct fdt_scan_prop *prop, void *extra) {
+static void mem_prop(const struct fdt_scan_prop *prop, void *extra)
+{
   struct mem_scan *scan = (struct mem_scan *)extra;
-  if (!strcmp(prop->name, "device_type") && !strcmp((const char *)prop->value, "memory")) {
+  if (!strcmp(prop->name, "device_type") && !strcmp((const char *)prop->value, "memory"))
+  {
     scan->memory = 1;
-  } else if (!strcmp(prop->name, "reg")) {
+  }
+  else if (!strcmp(prop->name, "reg"))
+  {
     scan->reg_value = prop->value;
     scan->reg_len = prop->len;
   }
 }
 
-static void mem_done(const struct fdt_scan_node *node, void *extra) {
+static void mem_done(const struct fdt_scan_node *node, void *extra)
+{
   struct mem_scan *scan = (struct mem_scan *)extra;
   const uint32 *value = scan->reg_value;
   const uint32 *end = value + scan->reg_len / 4;
   uint64 self = (uint64)mem_done;
 
-  if (!scan->memory) return;
+  if (!scan->memory)
+    return;
   assert(scan->reg_value && scan->reg_len % 4 == 0);
 
-  while (end - value > 0) {
+  while (end - value > 0)
+  {
     uint64 base, size;
     value = fdt_get_address(node->parent, value, &base);
     value = fdt_get_size(node->parent, value, &size);
-    if (base <= self && self <= base + size) {
+    if (base <= self && self <= base + size)
+    {
       g_mem_size = size;
     }
   }
@@ -52,7 +62,8 @@ static void mem_done(const struct fdt_scan_node *node, void *extra) {
 }
 
 // scanning the emulated memory
-void query_mem(uint64 fdt) {
+void query_mem(uint64 fdt)
+{
   struct fdt_cb cb;
   struct mem_scan scan;
 

@@ -31,17 +31,18 @@ static void handle_syscall(trapframe *tf)
 
 //
 // global variable that store the recorded "ticks". added @lab1_3
-static uint64 g_ticks = 0;
+static uint64 g_ticks[NCPU] = {0};
 //
 // added @lab1_3
 //
 void handle_mtimer_trap()
 {
-  sprint("Ticks %d\n", g_ticks);
+  uint64 hartid = read_tp();
+  sprint("Ticks %d\n", g_ticks[hartid]);
   // TODO (lab1_3): increase g_ticks to record this "tick", and then clear the "SIP"
   // field in sip register.
   // hint: use write_csr to disable the SIP_SSIP bit in sip.
-  g_ticks++;
+  g_ticks[hartid]++;
   write_csr(sip, 0);
 }
 
@@ -75,6 +76,8 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
 //
 void smode_trap_handler(void)
 {
+  uint64 hartid = read_tp();
+
   // make sure we are in User mode before entering the trap handling.
   // we will consider other previous case in lab1_3 (interrupt).
   if ((read_csr(sstatus) & SSTATUS_SPP) != 0)
@@ -82,10 +85,10 @@ void smode_trap_handler(void)
 
   assert(current);
   // save user process counter.
-  current->trapframe->epc = read_csr(sepc);
+  current->trapframe[hartid]->epc = read_csr(sepc);
 
-  // if the cause of trap is syscall from user application.
-  // read_csr() and CAUSE_USER_ECALL are macros defined in kernel/riscv.h
+  //  if the cause of trap is syscall from user application.
+  //  read_csr() and CAUSE_USER_ECALL are macros defined in kernel/riscv.h
   uint64 cause = read_csr(scause);
 
   // use switch-case instead of if-else, as there are many cases since lab2_3.

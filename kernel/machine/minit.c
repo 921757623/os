@@ -6,6 +6,7 @@
 #include "kernel/riscv.h"
 #include "kernel/config.h"
 #include "spike_interface/spike_utils.h"
+#include "kernel/sync_utils.h"
 
 //
 // global variables are placed in the .data section.
@@ -38,10 +39,12 @@ riscv_regs g_itrframe;
 // in Intel series CPUs. it records the details of devices and memory of the
 // platform simulated using Spike.
 //
-void init_dtb(uint64 dtb) {
+void init_dtb(uint64 dtb)
+{
   // defined in spike_interface/spike_htif.c, enabling Host-Target InterFace (HTIF)
   query_htif(dtb);
-  if (htif) sprint("HTIF is available!\r\n");
+  if (htif)
+    sprint("HTIF is available!\r\n");
 
   // defined in spike_interface/spike_memory.c, obtain information about emulated memory
   query_mem(dtb);
@@ -52,9 +55,11 @@ void init_dtb(uint64 dtb) {
 // delegate (almost all) interrupts and most exceptions to S-mode.
 // after delegation, syscalls will handled by the PKE OS kernel running in S-mode.
 //
-static void delegate_traps() {
+static void delegate_traps()
+{
   // supports_extension macro is defined in kernel/riscv.h
-  if (!supports_extension('S')) {
+  if (!supports_extension('S'))
+  {
     // confirm that our processor supports supervisor mode. abort if it does not.
     sprint("S mode is not supported.\n");
     return;
@@ -79,28 +84,38 @@ static void delegate_traps() {
 //
 // enabling timer interrupt (irq) in Machine mode. added @lab1_3
 //
-void timerinit(uintptr_t hartid) {
+void timerinit(uintptr_t hartid)
+{
   // fire timer irq after TIMER_INTERVAL from now.
-  *(uint64*)CLINT_MTIMECMP(hartid) = *(uint64*)CLINT_MTIME + TIMER_INTERVAL;
+  *(uint64 *)CLINT_MTIMECMP(hartid) = *(uint64 *)CLINT_MTIME + TIMER_INTERVAL;
 
   // enable machine-mode timer irq in MIE (Machine Interrupt Enable) csr.
   write_csr(mie, read_csr(mie) | MIE_MTIE);
 }
 
+int counter = 0;
 //
 // m_start: machine mode C entry point.
 //
-void m_start(uintptr_t hartid, uintptr_t dtb) {
-  // init the spike file interface (stdin,stdout,stderr)
-  // functions with "spike_" prefix are all defined in codes under spike_interface/,
-  // sprint is also defined in spike_interface/spike_utils.c
-  spike_file_init();
+void m_start(uintptr_t hartid, uintptr_t dtb)
+{
+  if (hartid == 0)
+  {
+    // init the spike file interface (stdin,stdout,stderr)
+    // functions with "spike_" prefix are all defined in codes under spike_interface/,
+    // sprint is also defined in spike_interface/spike_utils.c
+    spike_file_init();
+
+    // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
+    // init_dtb() is defined above.
+    init_dtb(dtb);
+  }
+
+  // 使用同步机制确保在spike和HTIF初始化完成之前，保证每个核都不会访问他们相应的资源。
+  // sprint("current counter's value is: %d\n", counter);
+  sync_barrier(&counter, NCPU);
+
   sprint("In m_start, hartid:%d\n", hartid);
-
-  // init HTIF (Host-Target InterFace) and memory by using the Device Table Blob (DTB)
-  // init_dtb() is defined above.
-  init_dtb(dtb);
-
   // save the address of trap frame for interrupt in M mode to "mscratch". added @lab1_2
   write_csr(mscratch, &g_itrframe);
 
@@ -126,7 +141,8 @@ void m_start(uintptr_t hartid, uintptr_t dtb) {
 
   // init timing. added @lab1_3
   timerinit(hartid);
-
+  // sprint("hartid %d alter the value of tp\n", hartid);
+  write_tp(hartid);
   // switch to supervisor mode (S mode) and jump to s_start(), i.e., set pc to mepc
   asm volatile("mret");
 }

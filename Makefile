@@ -81,6 +81,8 @@ $(OBJ_DIR):
 	@-mkdir -p $(dir $(KERNEL_OBJS))
 	@-mkdir -p $(dir $(USER_OBJ0))
 	@-mkdir -p $(dir $(USER_OBJ1))
+	@-mkdir -p $(dir $(USER_OBJ0))
+	@-mkdir -p $(dir $(USER_OBJ1))
 
 $(OBJ_DIR)/%.o : %.c
 	@echo "compiling" $<
@@ -121,13 +123,18 @@ $(USER_TARGET1): $(OBJ_DIR) $(UTIL_LIB) $(USER_OBJ1)
 .DEFAULT_GOAL := $(all)
 
 all: $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
+all: $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
 .PHONY:all
 
 run: $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
+run: $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
 	@echo "********************HUST PKE********************"
+	spike -p2 $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
 	spike -p2 $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
 
 # need openocd!
+gdb:$(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
+	spike --rbb-port=9824 -H -p2 $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1) &
 gdb:$(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1)
 	spike --rbb-port=9824 -H -p2 $(KERNEL_TARGET) $(USER_TARGET0) $(USER_TARGET1) &
 	@sleep 1
