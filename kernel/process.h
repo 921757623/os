@@ -23,9 +23,9 @@ typedef struct trapframe_t
 typedef struct process_t
 {
   // pointing to the stack used in trap handling.
-  uint64 kstack;
+  uint64 kstack[NCPU];
   // user page table
-  pagetable_t pagetable;
+  pagetable_t pagetable[NCPU];
   // trapframe storing the context of a (User mode) process.
   trapframe *trapframe[NCPU];
 } process;
@@ -37,6 +37,6 @@ void switch_to(process *);
 extern process *current;
 
 // address of the first free page in our simple heap. added @lab2_2
-extern uint64 g_ufree_page;
+extern uint64 g_ufree_page[NCPU];
 
 #endif

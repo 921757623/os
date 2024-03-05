@@ -23,10 +23,8 @@ extern void return_to_user(trapframe *, uint64 satp);
 
 // current points to the currently running user-mode application.
 process *current = NULL;
-
 // points to the first free page in our simple heap. added @lab2_2
-uint64 g_ufree_page = USER_FREE_ADDRESS_START;
-
+uint64 g_ufree_page[NCPU] = {USER_FREE_ADDRESS_START, USER_FREE_ADDRESS_START};
 //
 // switch to a user-mode process
 //
@@ -44,10 +42,10 @@ void switch_to(process *proc)
 
   // set up trapframe values (in process structure) that smode_trap_vector will need when
   // the process next re-enters the kernel.
-  proc->trapframe->kernel_sp = proc->kstack;     // process's kernel stack
-  proc->trapframe->kernel_satp = read_csr(satp); // kernel page table
-  proc->trapframe->kernel_trap = (uint64)smode_trap_handler;
-
+  proc->trapframe[hartid]->kernel_sp = proc->kstack[hartid]; // process's kernel stack
+  proc->trapframe[hartid]->kernel_satp = read_csr(satp);     // kernel page table
+  proc->trapframe[hartid]->kernel_trap = (uint64)smode_trap_handler;
+  proc->trapframe[hartid]->regs.tp = hartid;
   // SSTATUS_SPP and SSTATUS_SPIE are defined in kernel/riscv.h
   // set S Previous Privilege mode (the SSTATUS_SPP bit in sstatus register) to User mode.
   unsigned long x = read_csr(sstatus);
@@ -58,12 +56,12 @@ void switch_to(process *proc)
   write_csr(sstatus, x);
 
   // set S Exception Program Counter (sepc register) to the elf entry pc.
-  write_csr(sepc, proc->trapframe->epc);
+  write_csr(sepc, proc->trapframe[hartid]->epc);
 
   // make user page table. macro MAKE_SATP is defined in kernel/riscv.h. added @lab2_1
-  uint64 user_satp = MAKE_SATP(proc->pagetable);
+  uint64 user_satp = MAKE_SATP(proc->pagetable[hartid]);
 
   // return_to_user() is defined in kernel/strap_vector.S. switch to user mode with sret.
   // note, return_to_user takes two parameters @ and after lab2_1.
-  return_to_user(proc->trapframe, user_satp);
+  return_to_user(proc->trapframe[hartid], user_satp);
 }

@@ -22,6 +22,7 @@ typedef struct elf_info_t
 //
 static void *elf_alloc_mb(elf_ctx *ctx, uint64 elf_pa, uint64 elf_va, uint64 size)
 {
+  uint64 hartid = read_tp();
   elf_info *msg = (elf_info *)ctx->info;
   // we assume that size of proram segment is smaller than a page.
   kassert(size < PGSIZE);
@@ -30,7 +31,7 @@ static void *elf_alloc_mb(elf_ctx *ctx, uint64 elf_pa, uint64 elf_va, uint64 siz
     panic("uvmalloc mem alloc falied\n");
 
   memset((void *)pa, 0, PGSIZE);
-  user_vm_map((pagetable_t)msg->p->pagetable, elf_va, PGSIZE, (uint64)pa,
+  user_vm_map((pagetable_t)msg->p->pagetable[hartid], elf_va, PGSIZE, (uint64)pa,
               prot_to_type(PROT_WRITE | PROT_READ | PROT_EXEC, 1));
 
   return pa;
@@ -163,13 +164,6 @@ void load_bincode_from_host_elf(process *p)
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK)
     panic("Fail on loading elf.\n");
-
-  // USER_TRAP_FRAME is a physical address defined in kernel/config.h
-  p->trapframe[hartid] = (trapframe *)elfloader.ehdr.entry + USER_TRAP_FRAME_OFFSET;
-  memset(p->trapframe[hartid], 0, sizeof(trapframe));
-  // USER_KSTACK is also a physical address defined in kernel/config.h
-  p->kstack[hartid] = elfloader.ehdr.entry + USER_KSTACK_OFFSET;
-  p->trapframe[hartid]->regs.sp = elfloader.ehdr.entry + USER_STACK_OFFSET;
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe[hartid]->epc = elfloader.ehdr.entry;

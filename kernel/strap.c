@@ -53,6 +53,7 @@ void handle_mtimer_trap()
 //
 void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
 {
+  uint64 hartid = read_tp();
   sprint("handle_page_fault: %lx\n", stval);
   switch (mcause)
   {
@@ -61,7 +62,7 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
     // dynamically increase application stack.
     // hint: first allocate a new physical page, and then, maps the new page to the
     // virtual address that causes the page fault.
-    map_pages(current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)alloc_page(), prot_to_type(PROT_READ | PROT_WRITE, 1));
+    map_pages(current->pagetable[hartid], ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)alloc_page(), prot_to_type(PROT_READ | PROT_WRITE, 1));
 
     break;
   default:
@@ -95,7 +96,7 @@ void smode_trap_handler(void)
   switch (cause)
   {
   case CAUSE_USER_ECALL:
-    handle_syscall(current->trapframe);
+    handle_syscall(current->trapframe[hartid]);
     break;
   case CAUSE_MTIMER_S_TRAP:
     handle_mtimer_trap();
