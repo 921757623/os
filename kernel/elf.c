@@ -183,6 +183,7 @@ void make_addr_line(elf_ctx *ctx, char *debug_line, uint64 length)
         // simulate the state machine op code
         for (;;)
         {
+            sprint("");
             uint8 op = *(off++);
             switch (op)
             {
@@ -339,7 +340,7 @@ elf_status elf_load(elf_ctx *ctx)
     elf_sect_header shstr;
     elf_fpread(ctx, (void *)&shstr, (uint64)ctx->ehdr.shentsize, offset_shstrndx);
     // 将整个string table index复制下来
-    char sstr[256] = {0};
+    char sstr[512] = {0};
     elf_fpread(ctx, (void *)sstr, shstr.size, shstr.offset);
 
     // 找到.debug_line
