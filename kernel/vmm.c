@@ -239,28 +239,28 @@ void enlarge_heap_size(pagetable_t page_dir, heap_manage *heap, uint64 increased
     panic("element illegal!");
     return;
   }
-  sprint("begin enlarge heap size!\n");
+  // sprint("begin enlarge heap size!\n");
   heap->size = user_vm_allocate(page_dir, heap->size, heap->size + increased_size);
-  sprint("current heap size is: %p\n", heap->size);
+  // sprint("current heap size is: %p\n", heap->size);
 }
 
 uint64 user_vm_malloc(pagetable_t page_dir, heap_manage *heap, uint64 size)
 {
-  sprint("begin to malloc\n");
-  // 现在已有的内存控制块中寻找是否有可用的内存块
+  // sprint("begin to malloc\n");
+  //  现在已有的内存控制块中寻找是否有可用的内存块
   vm_node *head = heap->start;
   while (head)
   {
     if (head->is_free == TRUE && head->size >= size)
     {
-      sprint("find the free memory block: %p\n", head);
+      // sprint("find the free memory block: %p\n", head);
       head->is_free = FALSE;
       return head->node_addr + sizeof(vm_node);
     }
     head = head->next;
   }
-  sprint("create new memory block!\n");
-  // 如果没有找到空余的内存块，那么创建一个新的内存块
+  // sprint("create new memory block!\n");
+  //  如果没有找到空余的内存块，那么创建一个新的内存块
   uint64 addr = heap->size;
   enlarge_heap_size(page_dir, heap, sizeof(vm_node) + size + 8); // 加8是为了内存对齐
   pte_t *pte = page_walk(page_dir, addr, 0);
@@ -276,18 +276,18 @@ uint64 user_vm_malloc(pagetable_t page_dir, heap_manage *heap, uint64 size)
   new_vm->next = NULL;
   heap->end->next = new_vm;
   heap->end = new_vm;
-  sprint("the new memory bolck's addr is: %p\n", new_vm);
+  // print("the new memory bolck's addr is: %p\n", new_vm);
   return addr + sizeof(vm_node);
 }
 
 void user_vm_free(pagetable_t page_dir, uint64 va)
 {
-  sprint("begin to free!\n");
+  // sprint("begin to free!\n");
   void *firstaddr = (void *)((uint64)va - sizeof(vm_node));
   pte_t *pte = page_walk(page_dir, (uint64)(firstaddr), 0);
   // 找到当前内存块的控制块
   vm_node *current = (vm_node *)(PTE2PA(*pte) + ((uint64)firstaddr & 0xfff));
   current = (vm_node *)((uint64)current + (8 - ((uint64)current % 8)));
   current->is_free = TRUE;
-  sprint("the free memory bolck's addr is: %p\n", current);
+  // sprint("the free memory bolck's addr is: %p\n", current);
 }

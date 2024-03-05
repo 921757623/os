@@ -29,8 +29,8 @@ uint64 g_ufree_page = USER_FREE_ADDRESS_START;
 
 void init_heap()
 {
-  sprint("begin to init the heap!\n");
-  // 初始化内存堆
+  // sprint("begin to init the heap!\n");
+  //  初始化内存堆
   current->heap.size = USER_FREE_ADDRESS_START;
   enlarge_heap_size(current->pagetable, (heap_manage *)&current->heap, sizeof(vm_node));
 
