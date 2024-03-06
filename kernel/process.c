@@ -82,6 +82,7 @@ void init_proc_pool()
   {
     procs[i].status = FREE;
     procs[i].pid = i;
+    procs[i].parent = NULL;
   }
 }
 
@@ -175,7 +176,8 @@ int free_process(process *proc)
   // but for proxy kernel, it (memory leaking) may NOT be a really serious issue,
   // as it is different from regular OS, which needs to run 7x24.
   proc->status = ZOMBIE;
-
+  if (current->parent != NULL)
+    insert_to_ready_queue(current->parent);
   return 0;
 }
 
@@ -262,6 +264,27 @@ int do_fork(process *parent)
       child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
       child->total_mapped_region++;
       break;
+    case DATA_SEGMENT:
+    {
+      for (int j = 0; j < parent->mapped_info[i].npages; j++)
+      {
+        void *pa = (void *)lookup_pa(parent->pagetable, parent->mapped_info[i].va + j * PGSIZE);
+        void *new_pa = alloc_page();
+        memcpy(new_pa, pa, PGSIZE);
+        map_pages(
+            child->pagetable,
+            parent->mapped_info[i].va + j * PGSIZE,
+            PGSIZE,
+            (uint64)new_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+      }
+      // after mapping, register the vm region (do not delete codes below!)
+      child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+      child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+      child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+      child->total_mapped_region++;
+      break;
+    }
     }
   }
 
@@ -271,4 +294,64 @@ int do_fork(process *parent)
   insert_to_ready_queue(child);
 
   return child->pid;
+}
+
+int do_wait(int pid)
+{
+  if (pid == -1)
+  {
+    // child数组用于存储当前进程的所有子进程的pid
+    int cnt = -1;
+    // 找出当前进程的子进程
+    for (int i = 0; i < NPROC; i++)
+    {
+      if (procs[i].parent == current)
+      {
+        cnt++;
+        // sprint("\ncurrent pid: %d, its son pid: %d\n\n", current->pid, procs[i].pid);
+        //  如果当前子进程已经结束了就直接返回
+        if (procs[i].status == ZOMBIE)
+        {
+          procs[i].status = FREE;
+          return i;
+        }
+      }
+    }
+    // 如果没有子进程，直接结束
+    if (cnt == -1)
+    {
+      // panic("\nend\n");
+      return -1;
+    }
+    else
+    {
+      schedule();
+      return -2;
+    }
+    // 如果在寻找的过程中子进程均没有结束
+  }
+  else if (pid > 0 && pid < NPROC)
+  {
+    // 如果目标pid不是当前进程的子进程
+    if (procs[pid].parent != current)
+    {
+      return -1;
+    }
+    else
+    {
+      if (procs[pid].status == ZOMBIE)
+      {
+        procs[pid].status = FREE;
+        return pid;
+      }
+      else
+      {
+        schedule();
+        return -2;
+      }
+    }
+  }
+  // pid不合法的情况
+  panic("\nilleagal\n");
+  return -1;
 }

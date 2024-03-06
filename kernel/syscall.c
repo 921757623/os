@@ -102,7 +102,6 @@ ssize_t sys_user_yield()
   current->status = READY;
   insert_to_ready_queue(current);
   schedule();
-
   return 0;
 }
 
@@ -243,6 +242,11 @@ ssize_t sys_user_unlink(char *vfn)
   return do_unlink(pfn);
 }
 
+ssize_t sys_user_wait(int pid)
+{
+  return do_wait(pid);
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
@@ -264,6 +268,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
     return sys_user_fork();
   case SYS_user_yield:
     return sys_user_yield();
+  case SYS_user_wait:
+    return sys_user_wait(a1);
   // added @lab4_1
   case SYS_user_open:
     return sys_user_open((char *)a1, a2);

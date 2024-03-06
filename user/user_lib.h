@@ -9,10 +9,11 @@
 
 int printu(const char *s, ...);
 int exit(int code);
-void* naive_malloc();
-void naive_free(void* va);
+void *naive_malloc();
+void naive_free(void *va);
 int fork();
 void yield();
+void wait();
 
 // added @ lab4_1
 int open(const char *pathname, int flags);
@@ -32,6 +33,5 @@ int closedir_u(int fd);
 // added @ lab4_3
 int link_u(const char *fn1, const char *fn2);
 int unlink_u(const char *fn);
-
 
 #endif

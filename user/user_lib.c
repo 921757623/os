@@ -84,6 +84,15 @@ void yield()
   do_user_call(SYS_user_yield, 0, 0, 0, 0, 0, 0, 0);
 }
 
+void wait(int pid)
+{
+  while (2233)
+  {
+    int res = do_user_call(SYS_user_wait, pid, 0, 0, 0, 0, 0, 0);
+    if (res != -2)
+      return;
+  }
+}
 //
 // lib call to open
 //
