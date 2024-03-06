@@ -27,7 +27,10 @@ int map_pages(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm)
     if ((pte = page_walk(page_dir, first, 1)) == 0)
       return -1;
     if (*pte & PTE_V)
+    {
+      sprint("table %lx, first %lx, pte %lx\n", page_dir, first, *pte);
       panic("map_pages fails on mapping va (0x%lx) to pa (0x%lx)", first, pa);
+    }
     *pte = PA2PTE(pa) | perm | PTE_V;
   }
   return 0;
@@ -45,6 +48,8 @@ uint64 prot_to_type(int prot, int user)
     perm |= PTE_W | PTE_D;
   if (prot & PROT_EXEC)
     perm |= PTE_X | PTE_A;
+  if (prot & PTE_COW)
+    perm |= PTE_COW;
   if (perm == 0)
     perm = PTE_R;
   if (user)
@@ -72,7 +77,6 @@ pte_t *page_walk(pagetable_t page_dir, uint64 va, int alloc)
     // macro "PX" gets the PTE index in page table of current level
     // "pte" points to the entry of current level
     pte_t *pte = pt + PX(level, va);
-
     // now, we need to know if above pte is valid (established mapping to a phyiscal page)
     // or not.
     if (*pte & PTE_V)
@@ -83,7 +87,7 @@ pte_t *page_walk(pagetable_t page_dir, uint64 va, int alloc)
     else
     { // PTE invalid (not exist).
       // allocate a page (to be the new pagetable), if alloc == 1
-      if (alloc && ((pt = (pte_t *)alloc_page(1)) != 0))
+      if (alloc && ((pt = (pte_t *)alloc_page()) != 0))
       {
         memset(pt, 0, PGSIZE);
         // writes the physical address of newly allocated page to pte, to establish the
@@ -210,25 +214,45 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free)
   // (use free_page() defined in pmm.c) the physical pages. lastly, invalidate the PTEs.
   // as naive_free reclaims only one page at a time, you only need to consider one page
   // to make user/app_naive_malloc to behave correctly.
-  pte_t *PTE = page_walk(page_dir, va, 0);
-  free_page((void *)PTE2PA(*PTE));
-  *PTE &= (~PTE_V);
+  pte_t *PTE;
+  for (uint64 a = va; a < va + size; a += PGSIZE)
+  {
+    PTE = page_walk(page_dir, a, 0);
+    if (free)
+    {
+      free_page((void *)PTE2PA(*PTE));
+    }
+    *PTE &= (~PTE_V);
+  }
 }
 
 //
 // debug function, print the vm space of a process. added @lab3_1
 //
-void print_proc_vmspace(process* proc) {
-  sprint( "======\tbelow is the vm space of process%d\t========\n", proc->pid );
-  for( int i=0; i<proc->total_mapped_region; i++ ){
-    sprint( "-va:%lx, npage:%d, ", proc->mapped_info[i].va, proc->mapped_info[i].npages);
-    switch(proc->mapped_info[i].seg_type){
-      case CODE_SEGMENT: sprint( "type: CODE SEGMENT" ); break;
-      case DATA_SEGMENT: sprint( "type: DATA SEGMENT" ); break;
-      case STACK_SEGMENT: sprint( "type: STACK SEGMENT" ); break;
-      case CONTEXT_SEGMENT: sprint( "type: TRAPFRAME SEGMENT" ); break;
-      case SYSTEM_SEGMENT: sprint( "type: USER KERNEL STACK SEGMENT" ); break;
+void print_proc_vmspace(process *proc)
+{
+  sprint("======\tbelow is the vm space of process%d\t========\n", proc->pid);
+  for (int i = 0; i < proc->total_mapped_region; i++)
+  {
+    sprint("-va:%lx, npage:%d, ", proc->mapped_info[i].va, proc->mapped_info[i].npages);
+    switch (proc->mapped_info[i].seg_type)
+    {
+    case CODE_SEGMENT:
+      sprint("type: CODE SEGMENT");
+      break;
+    case DATA_SEGMENT:
+      sprint("type: DATA SEGMENT");
+      break;
+    case STACK_SEGMENT:
+      sprint("type: STACK SEGMENT");
+      break;
+    case CONTEXT_SEGMENT:
+      sprint("type: TRAPFRAME SEGMENT");
+      break;
+    case SYSTEM_SEGMENT:
+      sprint("type: USER KERNEL STACK SEGMENT");
+      break;
     }
-    sprint( ", mapped to pa:%lx\n", lookup_pa(proc->pagetable, proc->mapped_info[i].va) );
+    sprint(", mapped to pa:%lx\n", lookup_pa(proc->pagetable, proc->mapped_info[i].va));
   }
 }
