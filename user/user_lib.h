@@ -13,7 +13,7 @@ void *naive_malloc();
 void naive_free(void *va);
 int fork();
 void yield();
-void wait();
+void wait(int pid);
 
 // added @ lab4_1
 int open(const char *pathname, int flags);
