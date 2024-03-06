@@ -15,6 +15,7 @@ OBJ_DIR 		:= obj
 SPROJS_INCLUDE 	:= -I.  
 
 HOSTFS_ROOT := hostfs_root
+HOSTFS_ROOT := hostfs_root
 ifneq (,)
   march := -march=
   is_32bit := $(findstring 32,$(march))
@@ -138,6 +139,7 @@ $(KERNEL_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(SPIKE_INF_LIB) $(KERNEL_OBJS) $(KERNE
 $(USER_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_OBJS)
 	@echo "linking" $@	...	
 	-@mkdir -p $(HOSTFS_ROOT)/bin
+	-@mkdir -p $(HOSTFS_ROOT)/bin
 	@$(COMPILE) --entry=main $(USER_OBJS) $(UTIL_LIB) -o $@
 	@echo "User app has been built into" \"$@\"
 	@cp $@ $(OBJ_DIR)
@@ -213,4 +215,5 @@ format:
 	@python ./format.py ./
 
 clean:
+	rm -fr ${OBJ_DIR} ${HOSTFS_ROOT}/bin
 	rm -fr ${OBJ_DIR} ${HOSTFS_ROOT}/bin

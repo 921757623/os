@@ -177,6 +177,7 @@ int closedir_u(int fd)
 // lib call to link
 //
 int link_u(const char *fn1, const char *fn2)
+
 {
   return do_user_call(SYS_user_link, (uint64)fn1, (uint64)fn2, 0, 0, 0, 0, 0);
 }
@@ -197,6 +198,7 @@ int close(int fd)
   return do_user_call(SYS_user_close, fd, 0, 0, 0, 0, 0, 0);
 }
 
-int exec(const char *command, const char *para)
+int exec(const char *path)
 {
+  return do_user_call(SYS_user_exec, (uint64)path, 0, 0, 0, 0, 0, 0);
 }
