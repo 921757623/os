@@ -1,13 +1,14 @@
 /*
  * This app starts a very simple shell and executes some simple commands.
  * The commands are stored in the hostfs_root/shellrc
- * The shell loads the file and executes the command line by line.                 
+ * The shell loads the file and executes the command line by line.
  */
 #include "user_lib.h"
 #include "string.h"
 #include "util/types.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   printu("\n======== Shell Start ========\n\n");
   int fd;
   int MAXBUF = 1024;
@@ -23,24 +24,29 @@ int main(int argc, char *argv[]) {
   int start = 0;
   while (1)
   {
-    if(!start) {
+
+    if (!start)
+    {
       token = strtok(buf, delim);
       start = 1;
     }
-    else 
+    else
       token = strtok(NULL, delim);
+
     strcpy(command, token);
     token = strtok(NULL, delim);
     strcpy(para, token);
-    if(strcmp(command, "END") == 0 && strcmp(para, "END") == 0)
+    if (strcmp(command, "END") == 0 && strcmp(para, "END") == 0)
       break;
     printu("Next command: %s %s\n\n", command, para);
     printu("==========Command Start============\n\n");
     int pid = fork();
-    if(pid == 0) {
+
+    if (pid == 0)
+    {
       int ret = exec(command, para);
       if (ret == -1)
-      printu("exec failed!\n");
+        printu("exec failed!\n");
     }
     else
     {

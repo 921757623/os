@@ -250,20 +250,24 @@ int do_fork(process *parent)
       // address region of child to the physical pages that actually store the code
       // segment of parent process.
       // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
-      map_pages(
-          child->pagetable,
-          parent->mapped_info[i].va,
-          parent->mapped_info[i].npages * PGSIZE,
-          lookup_pa(parent->pagetable, parent->mapped_info[i].va),
-          prot_to_type(PROT_EXEC | PROT_READ, 1));
+      {
+        uint64 pa = lookup_pa(parent->pagetable, parent->mapped_info[i].va);
+        sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n", pa, parent->mapped_info[i].va);
+        map_pages(
+            child->pagetable,
+            parent->mapped_info[i].va,
+            parent->mapped_info[i].npages * PGSIZE,
+            pa,
+            prot_to_type(PROT_EXEC | PROT_READ, 1));
 
-      // after mapping, register the vm region (do not delete codes below!)
-      child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
-      child->mapped_info[child->total_mapped_region].npages =
-          parent->mapped_info[i].npages;
-      child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
-      child->total_mapped_region++;
-      break;
+        // after mapping, register the vm region (do not delete codes below!)
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages =
+            parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      }
     case DATA_SEGMENT:
     {
       for (int j = 0; j < parent->mapped_info[i].npages; j++)
@@ -357,19 +361,23 @@ int do_wait(int pid)
 }
 process *refreash_proc(process *p)
 {
-  // init proc[i]'s vm space
+  // free_page((void *)p->trapframe);
+  //  init proc[i]'s vm space
   p->trapframe = (trapframe *)alloc_page(); // trapframe, used to save context
   memset(p->trapframe, 0, sizeof(trapframe));
 
-  // page directory
+  // free_page((void *)p->pagetable);
+  //  page directory
   p->pagetable = (pagetable_t)alloc_page();
   memset((void *)p->pagetable, 0, PGSIZE);
 
+  // free_page((void *)p->kstack);
   p->kstack = (uint64)alloc_page() + PGSIZE; // user kernel stack top
   uint64 user_stack = (uint64)alloc_page();  // phisical address of user stack bottom
   p->trapframe->regs.sp = USER_STACK_TOP;    // virtual address of user stack top
 
   // allocates a page to record memory regions (segments)
+  // free_page((void *)p->mapped_info);
   p->mapped_info = (mapped_region *)alloc_page();
   memset(p->mapped_info, 0, PGSIZE);
 
@@ -411,7 +419,26 @@ process *refreash_proc(process *p)
   return p;
 }
 
-void exec_proc(spike_file_t *f)
+void exec_proc(char *ppath, char *ppara)
 {
-  exec_load(refreash_proc(current), f);
+  process *p = refreash_proc(current);
+  uint64 argv_va = p->user_heap.heap_top;
+  uint64 argv_pa = (uint64)alloc_page();
+
+  user_vm_map(p->pagetable, argv_va, PGSIZE, argv_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+  p->user_heap.heap_top += PGSIZE;
+
+  uint64 *argv = (uint64 *)argv_pa;
+
+  uint64 para_va = p->user_heap.heap_top;
+  uint64 para_pa = (uint64)alloc_page();
+
+  user_vm_map(p->pagetable, para_va, PGSIZE, para_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+  p->user_heap.heap_top += PGSIZE;
+
+  argv[0] = para_va;
+
+  strcpy((char *)para_pa, ppara);
+
+  exec_load(p, argv_va, ppath);
 }

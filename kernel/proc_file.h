@@ -24,7 +24,7 @@ int do_closedir(int fd);
 int do_link(char *oldpath, char *newpath);
 int do_unlink(char *path);
 
-int do_exec(char *path);
+int do_exec(char *path, char *para);
 
 void fs_init(void);
 

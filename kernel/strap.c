@@ -64,6 +64,9 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval)
     map_pages(current->pagetable, ROUNDDOWN(stval, PGSIZE), PGSIZE, (uint64)alloc_page(), prot_to_type(PROT_READ | PROT_WRITE, 1));
 
     break;
+  case CAUSE_LOAD_PAGE_FAULT:
+    panic("cannot laod the page %lx", stval);
+    break;
   default:
     sprint("unknown page fault.\n");
     break;

@@ -68,5 +68,5 @@ elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
 void load_bincode_from_host_elf(process *p, char *filename);
-void exec_load(process *p, spike_file_t *f);
+void exec_load(process *p, uint64 va, char *ppath);
 #endif
